@@ -78,6 +78,25 @@ This is unfortunate, but there appears to be no simple way to work it around.
 For now, we have to use `XXH3_64bits_const(bytes, sizeof(bytes))`
 or `XXH3_64bits_const(std::span(bytes))` in this case.
 
+## Usage form Cmake
+if you want to include this header directly to your project without copy this file,
+you my add this repository as submodule and include simple static library into your proeject
+
+```bash
+git submodule add https://github.com/chys87/constexpr-xxh3.git
+```
+
+```cmake
+add_subdirectory(constexpr-xxh3)
+target_link_libraries(${PROJECT_NAME} PUBLIC xxh3)
+
+```
+
+``` cpp
+#include <constexpr-xxh3.h>
+constexpr hash = XXH3_64bits_const(constexprdataarray);
+```
+
 ## TODO
 
 Implement the 128-bit version
