@@ -9,7 +9,9 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_library(xxh3 STATIC constexpr-xxh3.h)
+# constexpr-xxh3 is a header-only library (single header, no sources),
+# so it is declared as an INTERFACE library.
+add_library(xxh3 INTERFACE)
 set(PUBLIC_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${PUBLIC_INCLUDE_DIR})
+target_include_directories(${PROJECT_NAME} INTERFACE ${PUBLIC_INCLUDE_DIR})
