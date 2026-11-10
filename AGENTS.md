@@ -8,8 +8,12 @@ constexpr-xxh3 is a C++20 constexpr implementation of the XXH3 64-bit variant
 of [xxHash](https://github.com/Cyan4973/xxHash) — a single-header,
 header-only library, so a hash can be computed at compile time. Three
 functions are implemented: `XXH3_64bits_const`,
-`XXH3_64bits_withSecret_const`, `XXH3_64bits_withSeed_const`. Used as a
-submodule by `QuasarApp/Heart` (and transitively by Games/Ecliptica).
+`XXH3_64bits_withSecret_const`, `XXH3_64bits_withSeed_const` (each with
+basic, "convenient" Bytes and object-representation overloads — see
+`README.md`). This repository is a fork of `chys87/constexpr-xxh3` and the
+canonical copy in the QuasarApp organisation: it is used as a submodule by
+`QuasarApp/Heart` (and transitively by Games/Ecliptica), pinned to
+`https://github.com/QuasarApp/constexpr-xxh3.git`.
 
 - **Language:** C++20, header-only (`constexpr-xxh3.h`)
 - **Build system:** CMake ≥ 3.19 (declares the INTERFACE target `xxh3`)
@@ -19,14 +23,22 @@ submodule by `QuasarApp/Heart` (and transitively by Games/Ecliptica).
 
 | Path | Contents |
 |---|---|
-| `constexpr-xxh3.h` | the entire library (single header) |
+| `constexpr-xxh3.h` | the entire library (single header, namespace `constexpr_xxh3`) |
 | `test/` | standalone unit test (`constexpr-xxh3-test.cc`, gtest, built via `test/Makefile`) |
 | `CMakeLists.txt` | declares the INTERFACE target `xxh3` for consumers |
+| `.clang-format` | formatting style (Google-based) |
 
 ### Architecture
 
-- Consumers use it via CMake (`add_subdirectory(<xxh3>)` + link `xxh3`) or by
-  including the header directly with `-std=c++20`.
+- Consumers use it via CMake (`add_subdirectory(<xxh3>)` + link the
+  INTERFACE target `xxh3`) or by including the header directly with
+  `-std=c++20`. The `CMakeLists.txt` guards re-inclusion: if a target
+  `xxh3` already exists it prints a notice and returns, so adding it twice
+  (e.g. directly and through `Heart`) is harmless.
+- Besides the basic byte/length overloads the header provides "convenient"
+  overloads taking a single `Bytes` parameter and object-representation
+  overloads; the latter accept structs/classes only when
+  `CONSTEXPR_XXH3_ALLOW_CLASS_REPR` is defined (the unit test defines it).
 - Correctness contract: results must be bit-identical to the reference
   xxHash library — the unit test asserts parity.
 
@@ -36,9 +48,11 @@ submodule by `QuasarApp/Heart` (and transitively by Games/Ecliptica).
 
 | Tool | Version / notes |
 |---|---|
-| CMake | ≥ 3.19 |
-| Compiler | C++20 required |
-| GoogleTest | for the standalone unit test (`test/Makefile`) |
+| CMake | ≥ 3.19 (only for the INTERFACE target wiring) |
+| Compiler | any C++20 compiler; the test Makefile builds with `g++` and `clang++` |
+| GoogleTest | system `gtest`/`gtest_main`, linked by `test/Makefile` |
+| Ninja | optional CMake generator |
+| Qt | not needed anywhere in this repository |
 
 ### Build
 
@@ -79,7 +93,10 @@ CMake options: none.
   another task branch.
 - Commit messages: short imperative subject + issue reference, e.g.
   `fix: <summary> (issue #<issue>)`, `docs: <summary> (issue #<issue>)`.
-- Keep the build and lint green; a red CI blocks the merge.
+- This repository has **no CI workflows** — the agent is responsible for
+  running the verification suite locally (configure + build + smoke test)
+  before requesting review, and for reporting the real commands and their
+  output in the PR body.
 
 **The exact commands.**
 
@@ -103,13 +120,15 @@ gh pr create --base main --head task_<issue> \
   --title "<type>: <short imperative summary> (issue #<issue>)" \
   --body-file /tmp/pr_body.md
 
-# 5. the issue goes to waiting-for-review; watch CI from the CLI
+# 5. the issue goes to waiting-for-review. There is no CI to watch —
+#    re-run the local verification (build + smoke test) before reporting
 gh issue edit <issue> --remove-label in-progress --add-label waiting-for-review
-gh pr checks <number>
 ```
 
-This repo does not define a `waiting-for-review` label yet — create it
-before first use: `gh label create waiting-for-review --color 'fbca04'`.
+This repo does not define `waiting-for-review` or `blocked` yet — create
+them before first use:
+`gh label create waiting-for-review --color 'fbca04'` and
+`gh label create blocked --color 'fbca04'`.
 
 **Status messages — what to post and when.** An agent must keep a
 human-readable trail on the issue (and on the PR once it exists). Every
@@ -123,7 +142,7 @@ updated in place (`--edit-last`), never duplicated.
 | Blocked / needs input | `blocked` / `question` | `## Blocked — task_XXX` — what is blocking and exactly what is needed to continue |
 | PR opened | `waiting-for-review` | `## Progress — task_XXX` — all lines `- [x]` + `**PR: <url>**` + one-line verification summary |
 | Review changes requested | `waiting-for-review` | `## Review-fix cycle — PR #NNN — update` — one `- [x]` line per review point, each with the evidence |
-| CI red on the PR | `in-progress` | `## CI failure — PR #NNN` — failing check, cause, fix plan; push the fix, then update the comment |
+| Verification fails | `in-progress` | `## Verification failure — PR #NNN` — failing local command, cause, fix plan; push the fix, then update the comment |
 
 **Creating the pull request.** An agent has no browser and cannot create a
 pull request from the GitHub web UI — it must use the `gh` CLI (a token with
@@ -159,14 +178,20 @@ gh pr create \
 
 A standalone gtest unit test in `test/` (`constexpr-xxh3-test.cc` +
 `test/Makefile`) that checks the constexpr functions produce exactly the same
-results as the reference xxHash library.
+results as the reference xxHash library. The Makefile compiles the test with
+`-DXXH_INLINE_ALL -DCONSTEXPR_XXH3_ALLOW_CLASS_REPR -O2 -Wall -Wextra
+-std=c++20 -I..` and links `-lgtest_main -lgtest -lpthread`; targets:
+`test-gcc`, `test-clang`, `all` (both) and `clean`. The built test
+binaries are git-ignored (`test/.gitignore`).
 
 ### Running the tests from CMake
 
-The unit test is not wired into CMake; it runs through its own Makefile:
+The unit test is not wired into CMake (this repository has no CTest);
+it runs through its own Makefile:
 
 ```sh
-make -C test test-gcc     # or: make -C test test-clang
+make -C test test-gcc      # requires g++ + system gtest
+make -C test test-clang    # requires clang++ (or: make -C test all)
 ```
 
 ### Smoke tests — the most important testing step
