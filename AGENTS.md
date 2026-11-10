@@ -24,7 +24,7 @@ canonical copy in the QuasarApp organisation: it is used as a submodule by
 | Path | Contents |
 |---|---|
 | `constexpr-xxh3.h` | the entire library (single header, namespace `constexpr_xxh3`) |
-| `test/` | standalone unit test (`constexpr-xxh3-test.cc`, gtest, built via `test/Makefile`) |
+| `test/` | standalone gtest sources (`constexpr-xxh3-test.cc`, `test/Makefile`) — not wired into CMake or CI |
 | `CMakeLists.txt` | declares the INTERFACE target `xxh3` for consumers |
 | `.clang-format` | formatting style (Google-based) |
 
@@ -38,9 +38,9 @@ canonical copy in the QuasarApp organisation: it is used as a submodule by
 - Besides the basic byte/length overloads the header provides "convenient"
   overloads taking a single `Bytes` parameter and object-representation
   overloads; the latter accept structs/classes only when
-  `CONSTEXPR_XXH3_ALLOW_CLASS_REPR` is defined (the unit test defines it).
+  `CONSTEXPR_XXH3_ALLOW_CLASS_REPR` is defined.
 - Correctness contract: results must be bit-identical to the reference
-  xxHash library — the unit test asserts parity.
+  xxHash library.
 
 ## Developing process
 
@@ -49,8 +49,7 @@ canonical copy in the QuasarApp organisation: it is used as a submodule by
 | Tool | Version / notes |
 |---|---|
 | CMake | ≥ 3.19 (only for the INTERFACE target wiring) |
-| Compiler | any C++20 compiler; the test Makefile builds with `g++` and `clang++` |
-| GoogleTest | system `gtest`/`gtest_main`, linked by `test/Makefile` |
+| Compiler | any C++20 compiler |
 | Ninja | optional CMake generator |
 | Qt | not needed anywhere in this repository |
 
@@ -58,8 +57,7 @@ canonical copy in the QuasarApp organisation: it is used as a submodule by
 
 Step by step.
 
-**1. One-time toolchain setup.** CMake ≥ 3.19 + a C++20 compiler + GoogleTest
-for the unit test. No Qt.
+**1. One-time toolchain setup.** CMake ≥ 3.19 + a C++20 compiler. No Qt.
 
 **2. Get the sources.** No submodules.
 
@@ -94,9 +92,9 @@ CMake options: none.
 - Commit messages: short imperative subject + issue reference, e.g.
   `fix: <summary> (issue #<issue>)`, `docs: <summary> (issue #<issue>)`.
 - This repository has **no CI workflows** — the agent is responsible for
-  running the verification suite locally (configure + build + smoke test)
-  before requesting review, and for reporting the real commands and their
-  output in the PR body.
+  running the verification locally (configure + build) before requesting
+  review, and for reporting the real commands and their output in the PR
+  body.
 
 **The exact commands.**
 
@@ -122,7 +120,7 @@ gh pr create --base main --head task_<issue> \
   --body-file /tmp/pr_body.md
 
 # 5. the issue goes to waiting-for-review. There is no CI to watch —
-#    re-run the local verification (build + smoke test) before reporting
+#    re-run the local verification (configure + build) before reporting
 gh issue edit <issue> --remove-label in-progress --add-label waiting-for-review
 ```
 
@@ -170,34 +168,3 @@ gh pr create \
 
 - The README documents the three functions and the xxHash parity contract —
   keep it in sync with `constexpr-xxh3.h`.
-- A changed hash function ships **with** an updated unit test — never in a
-  follow-up ticket.
-
-## Testing process
-
-### Test infrastructure
-
-A standalone gtest unit test in `test/` (`constexpr-xxh3-test.cc` +
-`test/Makefile`) that checks the constexpr functions produce exactly the same
-results as the reference xxHash library. The Makefile compiles the test with
-`-DXXH_INLINE_ALL -DCONSTEXPR_XXH3_ALLOW_CLASS_REPR -O2 -Wall -Wextra
--std=c++20 -I..` and links `-lgtest_main -lgtest -lpthread`; targets:
-`test-gcc`, `test-clang`, `all` (both) and `clean`. The built test
-binaries are git-ignored (`test/.gitignore`).
-
-### Running the tests from CMake
-
-The unit test is not wired into CMake (this repository has no CTest);
-it runs through its own Makefile:
-
-```sh
-make -C test test-gcc      # requires g++ + system gtest
-make -C test test-clang    # requires clang++ (or: make -C test all)
-```
-
-### Smoke tests — the most important testing step
-
-The smoke test is: `make -C test test-gcc` completes with zero failures —
-headless, seconds-fast, no Qt. Because the hash values are part of
-compile-time contracts in downstream QuasarApp projects, any change to
-`constexpr-xxh3.h` must re-run this test in the same PR.
