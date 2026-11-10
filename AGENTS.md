@@ -106,7 +106,8 @@ git fetch origin
 git checkout -b task_<issue> origin/main
 
 # 2. label the issue while working. Workflow labels in this repo:
-#    in-progress, high/medium/low priority, question, sponsor
+#    in-progress, high/medium/low priority, question, sponsor,
+#    waiting-for-review, blocked
 gh issue edit <issue> --add-label in-progress
 
 # 3. post the initial checklist as a comment; afterwards update that same
@@ -125,8 +126,8 @@ gh pr create --base main --head task_<issue> \
 gh issue edit <issue> --remove-label in-progress --add-label waiting-for-review
 ```
 
-This repo does not define `waiting-for-review` or `blocked` yet — create
-them before first use:
+If `waiting-for-review` or `blocked` are missing (e.g. on a fork, which
+does not inherit labels), create them before first use:
 `gh label create waiting-for-review --color 'fbca04'` and
 `gh label create blocked --color 'fbca04'`.
 
